@@ -2,51 +2,57 @@
 
 # 🌌 NebulaHeart 3D
 
-### ✋ Gesture-Controlled 3D Particle Experience
+### ✋ Pengalaman Visual 3D yang Dikendalikan dengan Gerakan Tangan
 
-**A real-time 3D visual experience controlled by hand gestures using Python, OpenCV, MediaPipe and OpenGL.**
+**Project Python interaktif yang menggabungkan hand tracking, computer vision, partikel 3D, dan OpenGL.**
 
 <br>
 
-<img src="nebulaheart-demo.png" alt="NebulaHeart 3D Demo" width="800">
+<img src="nebulaheart-demo.png" alt="Demo NebulaHeart 3D" width="800">
 
 <br><br>
 
 ![Python](https://img.shields.io/badge/Python-3.14-blue?logo=python)
 ![OpenCV](https://img.shields.io/badge/OpenCV-Computer%20Vision-red?logo=opencv)
 ![MediaPipe](https://img.shields.io/badge/MediaPipe-Hand%20Tracking-orange)
-![OpenGL](https://img.shields.io/badge/OpenGL-3D%20Graphics-lightgrey?logo=opengl)
-![Pygame](https://img.shields.io/badge/Pygame-Graphics-green)
+![OpenGL](https://img.shields.io/badge/OpenGL-Grafik%203D-lightgrey?logo=opengl)
+![Pygame](https://img.shields.io/badge/Pygame-Grafik-green)
 
 </div>
 
 ---
 
-## ✨ About
+## ✨ Tentang Project
 
-**NebulaHeart 3D** is an interactive Python project that combines **computer vision, hand tracking and 3D particle graphics**.
+**NebulaHeart 3D** adalah project interaktif berbasis Python yang menggunakan **kamera laptop untuk mendeteksi gerakan tangan** dan mengubahnya menjadi berbagai bentuk partikel 3D.
 
-The project uses your laptop camera to detect hand gestures in real time. Each gesture controls a different particle formation inside a 3D environment.
+Project ini menggabungkan:
 
-The goal is to create a simple but visually interesting example of how **AI/computer vision can interact with 3D graphics**.
+- ✋ Deteksi gerakan tangan
+- 👁️ Computer Vision
+- 🌌 Partikel 3D
+- 🎮 Grafik OpenGL
+- 🐍 Pemrograman Python
+
+Tujuannya adalah membuat pengalaman visual yang menarik sekaligus menjadi proyek untuk mempelajari **Python, computer vision, hand tracking, dan grafik 3D**.
 
 ---
 
-## ✋ Gesture Controls
+## ✋ Kontrol Gerakan Tangan
 
-| Gesture | Effect |
+| Gerakan | Hasil |
 |:---:|---|
-| 🖐️ Open Hand | 🌌 Cosmic Particles |
-| ☝️ One Finger | 🪐 Saturn 3D |
-| ✌️ Peace | 💙 **I LOVE U NAMA KAMU** |
-| ✊ Fist | ❤️ Heart |
+| 🖐️ Telapak terbuka | 🌌 Kosmos |
+| ☝️ Satu jari | 🪐 Saturnus 3D |
+| ✌️ Peace | 💙 **I LOVE U** |
+| ✊ Kepal | ❤️ Bentuk Hati |
 
 ---
 
-## 🎥 How It Works
+## 🎥 Cara Kerja
 
 ```text
-        📷 Camera
+        📷 Kamera
            │
            ▼
    ┌─────────────────┐
@@ -56,16 +62,16 @@ The goal is to create a simple but visually interesting example of how **AI/comp
             │
             ▼
    ┌─────────────────┐
-   │ Gesture Detection│
+   │ Deteksi Gestur  │
    └────────┬────────┘
             │
             ▼
    ┌─────────────────┐
-   │   Mode Selector │
+   │ Pemilihan Mode  │
    └────────┬────────┘
             │
             ▼
    ┌─────────────────┐
-   │  3D Particles   │
+   │  Partikel 3D    │
    │     OpenGL      │
    └─────────────────┘
