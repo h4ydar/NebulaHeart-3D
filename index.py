@@ -8,43 +8,85 @@ import numpy as np
 import math
 import threading
 import time
+import os
 
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 
 # ============================================================
-# KONFIGURASI
+# NEBULAHEART 3D
 # ============================================================
 
 WIDTH = 1000
 HEIGHT = 700
 
-NUM_PARTICLES = 1500
+CAMERA_WIDTH = 640
+CAMERA_HEIGHT = 480
+
+NUM_PARTICLES = 1800
 
 MODEL_PATH = "hand_landmarker.task"
+
+
+# ============================================================
+# DATA BERSAMA
+# ============================================================
 
 lock = threading.Lock()
 
 shared_data = {
+    "running": True,
     "mode": 1,
+    "gesture": "Tidak ada tangan",
+
     "target_x": 0.0,
     "target_y": 0.0,
     "target_z": -12.0,
+
     "frame": None,
-    "running": True
+    "fps": 0.0
 }
+
+
+# ============================================================
+# RANDOM
+# ============================================================
+
+np.random.seed(42)
 
 
 # ============================================================
 # MODE 1 - KOSMOS
 # ============================================================
 
-pos_space = np.random.uniform(
-    -4.0,
-    4.0,
-    (NUM_PARTICLES, 3)
+pos_space = np.zeros(
+    (NUM_PARTICLES, 3),
+    dtype=np.float32
 )
+
+for i in range(NUM_PARTICLES):
+
+    angle = np.random.uniform(
+        0,
+        math.pi * 2
+    )
+
+    radius = np.random.uniform(
+        0.5,
+        5.0
+    )
+
+    height = np.random.uniform(
+        -2.5,
+        2.5
+    )
+
+    pos_space[i] = [
+        math.cos(angle) * radius,
+        height,
+        math.sin(angle) * radius
+    ]
 
 
 # ============================================================
@@ -52,16 +94,20 @@ pos_space = np.random.uniform(
 # ============================================================
 
 pos_planet = np.zeros(
-    (NUM_PARTICLES, 3)
+    (NUM_PARTICLES, 3),
+    dtype=np.float32
 )
 
-NUM_SPHERE = 700
+NUM_SPHERE = 850
+
+
+# Bola planet
 
 for i in range(NUM_SPHERE):
 
     phi = np.random.uniform(
         0,
-        2 * np.pi
+        math.pi * 2
     )
 
     costheta = np.random.uniform(
@@ -69,78 +115,66 @@ for i in range(NUM_SPHERE):
         1
     )
 
-    theta = np.arccos(
+    theta = math.acos(
         costheta
     )
 
-    r = 1.3
-
-    pos_planet[i, 0] = (
-        r
-        * np.sin(theta)
-        * np.cos(phi)
+    radius = np.random.uniform(
+        1.15,
+        1.45
     )
 
-    pos_planet[i, 1] = (
-        r
-        * np.sin(theta)
-        * np.sin(phi)
-    )
-
-    pos_planet[i, 2] = (
-        r
-        * np.cos(theta)
-    )
+    pos_planet[i] = [
+        radius * math.sin(theta) * math.cos(phi),
+        radius * math.sin(theta) * math.sin(phi),
+        radius * math.cos(theta)
+    ]
 
 
-# Cincin Saturnus
+# Cincin
 
 for i in range(
     NUM_SPHERE,
     NUM_PARTICLES
 ):
 
-    theta = np.random.uniform(
+    angle = np.random.uniform(
         0,
-        2 * np.pi
+        math.pi * 2
     )
 
-    r = np.random.uniform(
+    radius = np.random.uniform(
         1.8,
-        3.8
+        4.0
     )
 
-    pos_planet[i, 0] = (
-        r * np.cos(theta)
-    )
-
-    pos_planet[i, 1] = np.random.uniform(
-        -0.05,
-        0.05
-    )
-
-    pos_planet[i, 2] = (
-        r * np.sin(theta)
-    )
+    pos_planet[i] = [
+        radius * math.cos(angle),
+        np.random.uniform(
+            -0.06,
+            0.06
+        ),
+        radius * math.sin(angle)
+    ]
 
 
 # ============================================================
-# MODE 3 - I LOVE U AYAA
+# MODE 3 - I LOVE U
 # ============================================================
 
 text_img = np.zeros(
-    (250, 900),
+    (260, 1000),
     dtype=np.uint8
 )
 
 cv2.putText(
     text_img,
-    "I LOVE U AYAA",
-    (20, 160),
+    "I LOVE U",
+    (150, 170),
     cv2.FONT_HERSHEY_SIMPLEX,
-    3.0,
+    4.0,
     255,
-    10,
+    12,
     cv2.LINE_AA
 )
 
@@ -149,36 +183,36 @@ y_indices, x_indices = np.where(
 )
 
 x_text = (
-    x_indices - 450
-) / 75.0
+    x_indices - 500
+) / 90.0
 
 y_text = -(
-    y_indices - 125
-) / 75.0
+    y_indices - 130
+) / 90.0
 
 z_text = np.random.uniform(
-    -0.1,
-    0.1,
+    -0.12,
+    0.12,
     len(x_text)
 )
 
 text_points = np.stack(
-    (
+    [
         x_text,
         y_text,
         z_text
-    ),
+    ],
     axis=-1
 )
 
-chosen_indices = np.random.choice(
+chosen = np.random.choice(
     len(text_points),
     NUM_PARTICLES
 )
 
 pos_text = text_points[
-    chosen_indices
-]
+    chosen
+].astype(np.float32)
 
 
 # ============================================================
@@ -186,67 +220,54 @@ pos_text = text_points[
 # ============================================================
 
 pos_heart = np.zeros(
-    (NUM_PARTICLES, 3)
+    (NUM_PARTICLES, 3),
+    dtype=np.float32
 )
 
-for i in range(
-    NUM_PARTICLES
-):
+for i in range(NUM_PARTICLES):
 
     t = np.random.uniform(
-        -np.pi,
-        np.pi
+        -math.pi,
+        math.pi
     )
 
-    p = np.random.uniform(
-        -np.pi,
-        np.pi
+    depth = np.random.uniform(
+        -math.pi,
+        math.pi
     )
 
     x = 2.0 * (
-        np.sin(t) ** 3
+        math.sin(t) ** 3
     )
 
     y = (
-        2.0 * np.cos(t)
-        - 0.7 * np.cos(2 * t)
-        - 0.3 * np.cos(3 * t)
-        - 0.1 * np.cos(4 * t)
+        2.0 * math.cos(t)
+        - 0.7 * math.cos(2 * t)
+        - 0.3 * math.cos(3 * t)
+        - 0.1 * math.cos(4 * t)
     )
 
-    z = np.sin(p) * 0.4
+    z = math.sin(depth) * 0.45
 
-    pos_heart[i, 0] = (
-        x * 0.85
-    )
-
-    pos_heart[i, 1] = (
-        y * 0.85
-    ) + 0.5
-
-    pos_heart[i, 2] = z
+    pos_heart[i] = [
+        x * 0.9,
+        y * 0.9 + 0.45,
+        z
+    ]
 
 
 # ============================================================
 # POSISI PARTIKEL
 # ============================================================
 
-current_pos = np.copy(
-    pos_space
-)
-
-target_pos = np.copy(
-    pos_space
-)
+current_pos = pos_space.copy()
 
 
 # ============================================================
-# DETEKSI GESTUR
+# DETEKSI JARI
 # ============================================================
 
-def hitung_mode_gestur(
-    hand_landmarks
-):
+def get_fingers(hand_landmarks):
 
     tips = [
         8,
@@ -262,69 +283,80 @@ def hitung_mode_gestur(
         18
     ]
 
-    jari_berdiri = []
+    result = []
 
     for tip, pip in zip(
         tips,
         pips
     ):
 
-        jari_berdiri.append(
+        result.append(
             hand_landmarks[tip].y
             <
             hand_landmarks[pip].y
         )
 
-
-    # --------------------------------------------------------
-    # KEPAL -> HATI
-    # --------------------------------------------------------
-
-    if sum(jari_berdiri) == 0:
-
-        return 4
+    return result
 
 
-    # --------------------------------------------------------
-    # TELUNJUK -> SATURNUS
-    # --------------------------------------------------------
+# ============================================================
+# DETEKSI GESTURE
+# ============================================================
+
+def hitung_mode_gestur(
+    hand_landmarks
+):
+
+    fingers = get_fingers(
+        hand_landmarks
+    )
+
+    # Kepal = Hati
+
+    if sum(fingers) == 0:
+
+        return 4, "Kepal"
+
+
+    # Telunjuk = Saturnus
 
     if (
-        jari_berdiri[0]
+        fingers[0]
         and not any(
-            jari_berdiri[1:]
+            fingers[1:]
         )
     ):
 
-        return 2
+        return 2, "Telunjuk"
 
 
-    # --------------------------------------------------------
-    # PEACE -> I LOVE U AYAA
-    # --------------------------------------------------------
+    # Peace = I LOVE U
 
     if (
-        jari_berdiri[0]
-        and jari_berdiri[1]
-        and not jari_berdiri[2]
-        and not jari_berdiri[3]
+        fingers[0]
+        and fingers[1]
+        and not fingers[2]
+        and not fingers[3]
     ):
 
-        return 3
+        return 3, "Peace"
 
 
-    # --------------------------------------------------------
-    # DEFAULT -> KOSMOS
-    # --------------------------------------------------------
+    # Telapak = Kosmos
 
-    return 1
+    if all(fingers):
+
+        return 1, "Telapak"
+
+
+    return 1, "Gerakan lain"
 
 
 # ============================================================
-# GARIS TANGAN
+# GAMBAR TANGAN
 # ============================================================
 
-HAND_CONNECTIONS = [
+CONNECTIONS = [
 
     (0, 1),
     (1, 2),
@@ -355,27 +387,23 @@ HAND_CONNECTIONS = [
 ]
 
 
-# ============================================================
-# GAMBAR LANDMARK TANGAN
-# ============================================================
-
-def gambar_tangan(
+def draw_hand(
     frame,
-    hand_landmarks
+    landmarks
 ):
 
-    tinggi, lebar, _ = frame.shape
+    height, width, _ = frame.shape
 
     points = []
 
-    for landmark in hand_landmarks:
+    for landmark in landmarks:
 
         x = int(
-            landmark.x * lebar
+            landmark.x * width
         )
 
         y = int(
-            landmark.y * tinggi
+            landmark.y * height
         )
 
         points.append(
@@ -386,18 +414,17 @@ def gambar_tangan(
             frame,
             (x, y),
             4,
-            (0, 255, 0),
+            (0, 255, 120),
             -1
         )
 
-
-    for start, end in HAND_CONNECTIONS:
+    for start, end in CONNECTIONS:
 
         cv2.line(
             frame,
             points[start],
             points[end],
-            (255, 0, 0),
+            (255, 120, 0),
             2
         )
 
@@ -412,9 +439,11 @@ def camera_thread_func():
 
     if not cap.isOpened():
 
-        print(
-            "ERROR: Kamera tidak dapat dibuka."
-        )
+        print()
+        print("================================")
+        print("ERROR: KAMERA TIDAK TERBUKA")
+        print("================================")
+        print()
 
         shared_data["running"] = False
 
@@ -423,18 +452,42 @@ def camera_thread_func():
 
     cap.set(
         cv2.CAP_PROP_FRAME_WIDTH,
-        480
+        CAMERA_WIDTH
     )
 
     cap.set(
         cv2.CAP_PROP_FRAME_HEIGHT,
-        360
+        CAMERA_HEIGHT
     )
 
 
-    # ========================================================
-    # MEDIAPIPE HAND LANDMARKER
-    # ========================================================
+    # --------------------------------------------------------
+    # CEK MODEL
+    # --------------------------------------------------------
+
+    if not os.path.exists(
+        MODEL_PATH
+    ):
+
+        print()
+        print(
+            "ERROR: hand_landmarker.task tidak ditemukan!"
+        )
+        print(
+            "Pastikan file berada satu folder dengan index.py."
+        )
+        print()
+
+        cap.release()
+
+        shared_data["running"] = False
+
+        return
+
+
+    # --------------------------------------------------------
+    # MEDIAPIPE
+    # --------------------------------------------------------
 
     base_options = python.BaseOptions(
         model_asset_path=MODEL_PATH
@@ -448,15 +501,25 @@ def camera_thread_func():
         min_tracking_confidence=0.5
     )
 
-    detector = (
-        vision.HandLandmarker
-        .create_from_options(options)
+    detector = vision.HandLandmarker.create_from_options(
+        options
     )
 
 
-    # ========================================================
+    # --------------------------------------------------------
+    # FPS
+    # --------------------------------------------------------
+
+    previous_time = time.time()
+
+    frames = 0
+
+    fps = 0.0
+
+
+    # --------------------------------------------------------
     # LOOP KAMERA
-    # ========================================================
+    # --------------------------------------------------------
 
     while shared_data["running"]:
 
@@ -464,7 +527,9 @@ def camera_thread_func():
 
         if not ret:
 
-            time.sleep(0.01)
+            time.sleep(
+                0.01
+            )
 
             continue
 
@@ -477,126 +542,188 @@ def camera_thread_func():
         )
 
 
-        # BGR -> RGB
+        # RGB
 
-        rgb_frame = cv2.cvtColor(
+        rgb = cv2.cvtColor(
             frame,
             cv2.COLOR_BGR2RGB
         )
 
 
-        # MediaPipe Image
-
         mp_image = mp.Image(
             image_format=mp.ImageFormat.SRGB,
-            data=rgb_frame
+            data=rgb
         )
 
 
         # Deteksi tangan
 
-        detection_result = detector.detect(
+        result = detector.detect(
             mp_image
         )
 
 
         local_mode = 1
 
+        local_gesture = (
+            "Tidak ada tangan"
+        )
+
         local_x = 0.0
         local_y = 0.0
         local_z = -12.0
 
 
-        # ====================================================
-        # JIKA TANGAN TERDETEKSI
-        # ====================================================
+        # ----------------------------------------------------
+        # TANGAN TERDETEKSI
+        # ----------------------------------------------------
 
-        if detection_result.hand_landmarks:
+        if result.hand_landmarks:
 
-            for hand_landmarks in (
-                detection_result.hand_landmarks
-            ):
+            landmarks = (
+                result.hand_landmarks[0]
+            )
 
-                # Gambar tangan
+            draw_hand(
+                frame,
+                landmarks
+            )
 
-                gambar_tangan(
-                    frame,
-                    hand_landmarks
+
+            local_mode, local_gesture = (
+                hitung_mode_gestur(
+                    landmarks
                 )
+            )
 
 
-                # Deteksi gesture
+            # Posisi tangan
 
-                local_mode = (
-                    hitung_mode_gestur(
-                        hand_landmarks
-                    )
-                )
+            wrist = landmarks[0]
 
+            local_x = (
+                wrist.x - 0.5
+            ) * 10.0
 
-                # Posisi wrist
-
-                wrist = (
-                    hand_landmarks[0]
-                )
+            local_y = -(
+                wrist.y - 0.5
+            ) * 7.0
 
 
-                local_x = (
-                    wrist.x - 0.5
-                ) * 10.0
+            # Jarak tangan
 
+            middle = landmarks[9]
 
-                local_y = -(
-                    wrist.y - 0.5
-                ) * 7.0
+            distance = math.sqrt(
 
-
-                # Jarak tangan
-
-                pinky_mcp = (
-                    hand_landmarks[17]
-                )
-
-
-                distance = math.sqrt(
-
-                    (
-                        wrist.x
-                        -
-                        pinky_mcp.x
-                    ) ** 2
-
-                    +
-
-                    (
-                        wrist.y
-                        -
-                        pinky_mcp.y
-                    ) ** 2
-
-                )
-
-
-                local_z = (
-                    -10.0
+                (
+                    wrist.x
                     -
-                    (
-                        1.0
-                        /
-                        (distance + 0.01)
-                    )
-                    * 0.2
-                )
+                    middle.x
+                ) ** 2
+
+                +
+
+                (
+                    wrist.y
+                    -
+                    middle.y
+                ) ** 2
+            )
 
 
-        # ====================================================
+            local_z = (
+                -11.0
+                -
+                distance * 4.0
+            )
+
+
+        # ----------------------------------------------------
+        # FPS
+        # ----------------------------------------------------
+
+        frames += 1
+
+        now = time.time()
+
+        elapsed = (
+            now
+            -
+            previous_time
+        )
+
+        if elapsed >= 1.0:
+
+            fps = (
+                frames
+                /
+                elapsed
+            )
+
+            frames = 0
+
+            previous_time = now
+
+
+        # ----------------------------------------------------
+        # TEKS PADA KAMERA
+        # ----------------------------------------------------
+
+        cv2.rectangle(
+            frame,
+            (0, 0),
+            (CAMERA_WIDTH, 95),
+            (0, 0, 0),
+            -1
+        )
+
+
+        cv2.putText(
+            frame,
+            "NEBULAHEART 3D",
+            (15, 28),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.75,
+            (255, 255, 255),
+            2
+        )
+
+
+        cv2.putText(
+            frame,
+            f"GESTUR : {local_gesture}",
+            (15, 55),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (0, 255, 180),
+            2
+        )
+
+
+        cv2.putText(
+            frame,
+            f"FPS : {fps:.1f}",
+            (15, 80),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (180, 220, 255),
+            2
+        )
+
+
+        # ----------------------------------------------------
         # SIMPAN DATA
-        # ====================================================
+        # ----------------------------------------------------
 
         with lock:
 
             shared_data["mode"] = (
                 local_mode
+            )
+
+            shared_data["gesture"] = (
+                local_gesture
             )
 
             shared_data["target_x"] = (
@@ -611,8 +738,12 @@ def camera_thread_func():
                 local_z
             )
 
+            shared_data["fps"] = (
+                fps
+            )
+
             shared_data["frame"] = (
-                frame
+                frame.copy()
             )
 
 
@@ -622,7 +753,7 @@ def camera_thread_func():
 
 
 # ============================================================
-# MULAI THREAD KAMERA
+# MULAI KAMERA
 # ============================================================
 
 camera_thread = threading.Thread(
@@ -632,7 +763,12 @@ camera_thread = threading.Thread(
 
 camera_thread.start()
 
-time.sleep(1.0)
+
+# Tunggu kamera sebentar
+
+time.sleep(
+    1.0
+)
 
 
 # ============================================================
@@ -650,7 +786,7 @@ pygame.display.set_mode(
 )
 
 pygame.display.set_caption(
-    "NebulaHeart 3D - Gesture Controller"
+    "NebulaHeart 3D"
 )
 
 
@@ -668,7 +804,7 @@ gluPerspective(
     45,
     WIDTH / HEIGHT,
     0.1,
-    50.0
+    60.0
 )
 
 glMatrixMode(
@@ -679,18 +815,33 @@ glEnable(
     GL_DEPTH_TEST
 )
 
+glEnable(
+    GL_BLEND
+)
+
+glBlendFunc(
+    GL_SRC_ALPHA,
+    GL_ONE_MINUS_SRC_ALPHA
+)
+
 
 # ============================================================
-# VARIABEL RENDER
+# VARIABEL
 # ============================================================
 
 clock = pygame.time.Clock()
 
-rotation_angle = 0.0
+rotation = 0.0
 
 hand_x = 0.0
 hand_y = 0.0
 hand_z = -12.0
+
+current_mode = 1
+
+manual_mode = False
+
+start_time = time.time()
 
 
 # ============================================================
@@ -699,41 +850,76 @@ hand_z = -12.0
 
 while shared_data["running"]:
 
-    pygame.event.pump()
-
+    # --------------------------------------------------------
+    # EVENT
+    # --------------------------------------------------------
 
     for event in pygame.event.get():
 
-        if (
-            event.type == pygame.QUIT
-            or (
-                event.type == KEYDOWN
-                and event.key == K_ESCAPE
-            )
-        ):
+        if event.type == pygame.QUIT:
 
             shared_data["running"] = False
 
 
-    # ========================================================
-    # AMBIL DATA DARI KAMERA
-    # ========================================================
+        if event.type == KEYDOWN:
+
+            if event.key == K_ESCAPE:
+
+                shared_data["running"] = False
+
+
+            elif event.key == K_1:
+
+                current_mode = 1
+
+                manual_mode = True
+
+
+            elif event.key == K_2:
+
+                current_mode = 2
+
+                manual_mode = True
+
+
+            elif event.key == K_3:
+
+                current_mode = 3
+
+                manual_mode = True
+
+
+            elif event.key == K_4:
+
+                current_mode = 4
+
+                manual_mode = True
+
+
+            elif event.key == K_g:
+
+                manual_mode = False
+
+
+    # --------------------------------------------------------
+    # AMBIL DATA
+    # --------------------------------------------------------
 
     with lock:
 
-        current_mode = (
+        detected_mode = (
             shared_data["mode"]
         )
 
-        target_hand_x = (
+        target_x = (
             shared_data["target_x"]
         )
 
-        target_hand_y = (
+        target_y = (
             shared_data["target_y"]
         )
 
-        target_hand_z = (
+        target_z = (
             shared_data["target_z"]
         )
 
@@ -742,75 +928,185 @@ while shared_data["running"]:
         )
 
 
-    # ========================================================
+    # --------------------------------------------------------
     # TAMPILKAN KAMERA
-    # ========================================================
+    # --------------------------------------------------------
 
     if frame is not None:
 
-        mode_labels = {
-
-            1:
-            "KOSMOS - Telapak Terbuka",
-
-            2:
-            "SATURNUS 3D - Satu Jari",
-
-            3:
-            "I LOVE U AYAA - Peace",
-
-            4:
-            "HATI / LOVE - Kepal"
-        }
-
-
-        cv2.putText(
-
-            frame,
-
-            "MODE: "
-            +
-            mode_labels[
-                current_mode
-            ],
-
-            (10, 30),
-
-            cv2.FONT_HERSHEY_SIMPLEX,
-
-            0.5,
-
-            (0, 255, 0),
-
-            2
-        )
-
-
-        # Window kamera
-
         cv2.imshow(
-            "Hand Sensor Monitor",
+            "NebulaHeart - Kamera",
             frame
         )
 
+        key = cv2.waitKey(
+            1
+        ) & 0xFF
 
-        # Tekan Q untuk keluar
-
-        if (
-            cv2.waitKey(1) & 0xFF
-        ) == ord("q"):
+        if key == ord("q"):
 
             shared_data["running"] = False
 
 
+    # --------------------------------------------------------
+    # MODE
+    # --------------------------------------------------------
+
+    if not manual_mode:
+
+        current_mode = (
+            detected_mode
+        )
+
+
+    # --------------------------------------------------------
+    # GERAKAN TANGAN
+    # --------------------------------------------------------
+
+    hand_x += (
+        target_x
+        -
+        hand_x
+    ) * 0.12
+
+
+    hand_y += (
+        target_y
+        -
+        hand_y
+    ) * 0.12
+
+
+    hand_z += (
+        target_z
+        -
+        hand_z
+    ) * 0.12
+
+
+    # --------------------------------------------------------
+    # WAKTU
+    # --------------------------------------------------------
+
+    elapsed = (
+        time.time()
+        -
+        start_time
+    )
+
+
+    # --------------------------------------------------------
+    # TARGET BENTUK
+    # --------------------------------------------------------
+
+    if current_mode == 1:
+
+        target_pos = pos_space
+
+        rotation += 0.25
+
+
+    elif current_mode == 2:
+
+        target_pos = pos_planet
+
+        rotation += 0.8
+
+
+    elif current_mode == 3:
+
+        target_pos = pos_text
+
+        rotation = 0.0
+
+
+    else:
+
+        target_pos = pos_heart
+
+        rotation += 0.35
+
+
+    # --------------------------------------------------------
+    # TRANSISI
+    # --------------------------------------------------------
+
+    current_pos += (
+        target_pos
+        -
+        current_pos
+    ) * 0.08
+
+
+    # Salin agar bentuk asli tidak berubah
+
+    render_pos = (
+        current_pos.copy()
+    )
+
+
     # ========================================================
-    # BERSIHKAN LAYAR OPENGL
+    # ANIMASI HATI
+    # ========================================================
+
+    if current_mode == 4:
+
+        beat = (
+            1.0
+            +
+            0.08
+            *
+            math.sin(
+                elapsed * 5.0
+            )
+        )
+
+        render_pos *= beat
+
+
+    # ========================================================
+    # ANIMASI KOSMOS
+    # ========================================================
+
+    if current_mode == 1:
+
+        orbit = (
+            elapsed * 0.25
+        )
+
+        cos_a = math.cos(
+            orbit
+        )
+
+        sin_a = math.sin(
+            orbit
+        )
+
+        x = render_pos[:, 0].copy()
+
+        z = render_pos[:, 2].copy()
+
+        render_pos[:, 0] = (
+            x * cos_a
+            -
+            z * sin_a
+        )
+
+        render_pos[:, 2] = (
+            x * sin_a
+            +
+            z * cos_a
+        )
+
+
+    # ========================================================
+    # OPENGL CLEAR
     # ========================================================
 
     glClearColor(
-        0.0,
-        0.0,
-        0.0,
+        0.005,
+        0.005,
+        0.02,
         1.0
     )
 
@@ -824,99 +1120,20 @@ while shared_data["running"]:
 
 
     # ========================================================
-    # GERAKAN OBJEK MENGIKUTI TANGAN
+    # POSISI
     # ========================================================
 
-    hand_x += (
-        target_hand_x
-        -
-        hand_x
-    ) * 0.25
-
-
-    hand_y += (
-        target_hand_y
-        -
-        hand_y
-    ) * 0.25
-
-
-    hand_z += (
-        target_hand_z
-        -
-        hand_z
-    ) * 0.25
-
-
-    # ========================================================
-    # PILIH TARGET BENTUK
-    # ========================================================
-
-    if current_mode == 1:
-
-        target_pos = pos_space
-
-        rotation_angle += 0.5
-
-
-    elif current_mode == 2:
-
-        target_pos = pos_planet
-
-        rotation_angle += 2.0
-
-
-    elif current_mode == 3:
-
-        target_pos = pos_text
-
-        rotation_angle = 0.0
-
-
-    elif current_mode == 4:
-
-        target_pos = pos_heart
-
-        rotation_angle += 1.5
-
-
-    # ========================================================
-    # TRANSISI PARTIKEL
-    # ========================================================
-
-    current_pos += (
-        target_pos
-        -
-        current_pos
-    ) * 0.15
-
-
-    # ========================================================
-    # POSISI BENTUK
-    # ========================================================
-
-    if current_mode in [
+    if current_mode in (
         2,
         3,
         4
-    ]:
+    ):
 
         glTranslatef(
             hand_x,
             hand_y,
             hand_z
         )
-
-
-        if current_mode == 2:
-
-            glRotatef(
-                25,
-                1.0,
-                0.0,
-                0.5
-            )
-
 
     else:
 
@@ -927,10 +1144,34 @@ while shared_data["running"]:
         )
 
 
-    # Rotasi
+    # ========================================================
+    # ROTASI
+    # ========================================================
+
+    if current_mode == 2:
+
+        glRotatef(
+            25,
+            1.0,
+            0.0,
+            0.5
+        )
+
+
+    if current_mode == 4:
+
+        glRotatef(
+            math.sin(
+                elapsed * 0.7
+            ) * 4.0,
+            0.0,
+            1.0,
+            0.0
+        )
+
 
     glRotatef(
-        rotation_angle,
+        rotation,
         0.0,
         1.0,
         0.0
@@ -938,22 +1179,31 @@ while shared_data["running"]:
 
 
     # ========================================================
-    # PARTIKEL
+    # UKURAN PARTIKEL
     # ========================================================
 
-    glEnable(
-        GL_BLEND
-    )
+    if current_mode == 3:
 
-    glBlendFunc(
-        GL_SRC_ALPHA,
-        GL_ONE_MINUS_SRC_ALPHA
-    )
+        glPointSize(
+            4.8
+        )
 
-    glPointSize(
-        4.5
-    )
+    elif current_mode == 4:
 
+        glPointSize(
+            5.2
+        )
+
+    else:
+
+        glPointSize(
+            4.0
+        )
+
+
+    # ========================================================
+    # PARTIKEL
+    # ========================================================
 
     glBegin(
         GL_POINTS
@@ -964,18 +1214,69 @@ while shared_data["running"]:
         NUM_PARTICLES
     ):
 
+        pulse = (
+            0.75
+            +
+            0.25
+            *
+            math.sin(
+                elapsed * 3.0
+                +
+                i * 0.03
+            )
+        )
+
 
         # ----------------------------------------------------
-        # I LOVE U AYAA
+        # KOSMOS
         # ----------------------------------------------------
 
-        if current_mode == 3:
+        if current_mode == 1:
 
             glColor4f(
-                0.0,
-                0.8,
+                0.10 * pulse,
+                0.50 * pulse,
+                1.00,
+                0.85
+            )
+
+
+        # ----------------------------------------------------
+        # SATURNUS
+        # ----------------------------------------------------
+
+        elif current_mode == 2:
+
+            if i < NUM_SPHERE:
+
+                glColor4f(
+                    1.0,
+                    0.55 * pulse,
+                    0.08,
+                    0.90
+                )
+
+            else:
+
+                glColor4f(
+                    1.0,
+                    0.80 * pulse,
+                    0.30,
+                    0.70
+                )
+
+
+        # ----------------------------------------------------
+        # I LOVE U
+        # ----------------------------------------------------
+
+        elif current_mode == 3:
+
+            glColor4f(
+                0.15,
+                0.80 * pulse,
                 1.0,
-                0.9
+                0.95
             )
 
 
@@ -983,71 +1284,30 @@ while shared_data["running"]:
         # HATI
         # ----------------------------------------------------
 
-        elif current_mode == 4:
+        else:
+
+            heart_pulse = (
+                0.75
+                +
+                0.25
+                *
+                math.sin(
+                    elapsed * 5.0
+                )
+            )
 
             glColor4f(
                 1.0,
-                0.1,
-                0.4,
+                0.08 * heart_pulse,
+                0.35 * heart_pulse,
                 0.95
             )
 
 
-        # ----------------------------------------------------
-        # CINCIN SATURNUS
-        # ----------------------------------------------------
-
-        elif (
-            current_mode == 2
-            and i >= NUM_SPHERE
-        ):
-
-            glColor4f(
-                1.0,
-                0.7,
-                0.3,
-                0.6
-            )
-
-
-        # ----------------------------------------------------
-        # BADAN SATURNUS
-        # ----------------------------------------------------
-
-        elif (
-            current_mode == 2
-            and i < NUM_SPHERE
-        ):
-
-            glColor4f(
-                1.0,
-                0.5,
-                0.0,
-                0.85
-            )
-
-
-        # ----------------------------------------------------
-        # KOSMOS
-        # ----------------------------------------------------
-
-        else:
-
-            glColor4f(
-                0.1,
-                0.5,
-                1.0,
-                0.8
-            )
-
-
         glVertex3f(
-
-            current_pos[i, 0],
-
-            current_pos[i, 1],
-
-            current_pos[i, 2]
+            render_pos[i, 0],
+            render_pos[i, 1],
+            render_pos[i, 2]
         )
 
 
@@ -1055,20 +1315,30 @@ while shared_data["running"]:
 
 
     # ========================================================
-    # UPDATE DISPLAY
+    # UPDATE
     # ========================================================
 
     pygame.display.flip()
 
-    clock.tick(60)
+    clock.tick(
+        60
+    )
 
 
 # ============================================================
-# CLEAN UP
+# SELESAI
 # ============================================================
 
 shared_data["running"] = False
 
+time.sleep(
+    0.2
+)
+
 cv2.destroyAllWindows()
 
 pygame.quit()
+
+print(
+    "NebulaHeart 3D selesai."
+)
