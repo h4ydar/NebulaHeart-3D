@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="nebulaheart-demo.png" alt="NebulaHeart 3D Demo" width="800">
+</p>
+
 # 🌌 NebulaHeart 3D
 
 **NebulaHeart 3D** adalah project visual 3D berbasis Python yang menggunakan **hand tracking** untuk mengendalikan bentuk partikel secara real-time.
