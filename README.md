@@ -10,7 +10,7 @@ Gerakan tangan di depan kamera akan mengubah bentuk partikel 3D. ✨
 |---|---|
 | 🖐️ Telapak terbuka | 🌌 Kosmos |
 | ☝️ Satu jari | 🪐 Saturnus 3D |
-| ✌️ Peace | 💙 I LOVE U AYAA |
+| ✌️ Peace | 💙 I LOVE U |
 | ✊ Kepal | ❤️ Hati |
 
 ## 🛠️ Dibuat dengan
